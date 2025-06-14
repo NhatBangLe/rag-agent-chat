@@ -7,3 +7,5 @@ resource
 Dockerfile
 docker-compose.yml
 test.py
+__pycache__
+.idea
