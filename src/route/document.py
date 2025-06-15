@@ -4,15 +4,15 @@ from pathlib import Path
 from typing import cast, Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, status, UploadFile, Form, File
+from fastapi import APIRouter, status, UploadFile, File, Form
 from sqlmodel import Session, select
 
 from ..data.base_model import DocumentSource
-from ..data.dto import DocumentPublic
+from ..data.dto import DocumentPublic, DocumentCreate
 from ..data.model import Document, DocumentChunk
 from ..dependency import SessionDep, DownloadGeneratorDep, PagingParams, PagingQuery
-from ..util.constant import DEFAULT_TIMEZONE
-from ..util.error import NotFoundError
+from ..util.constant import DEFAULT_TIMEZONE, SUPPORTED_DOCUMENT_TYPE_DICT
+from ..util.error import NotFoundError, InvalidArgumentError
 from ..util.function import strict_uuid_parser
 from ..util.main import SecureDownloadGenerator, FileInformation
 
@@ -67,18 +67,31 @@ def get_unembedded_documents(params: PagingParams, session: Session) -> list[Doc
     return list(results.all())
 
 
-async def save_document(file: UploadFile, description: str | None, session: Session) -> UUID:
+async def save_document(file: UploadFile, metadata: DocumentCreate, session: Session) -> UUID:
     file_bytes = await file.read()
     doc_id = uuid4()
     save_path = os.path.join(get_save_document_directory(), str(doc_id))
     Path(save_path).write_bytes(file_bytes)
 
+    file_name = file.filename
+    mime_type = file.content_type
+    ext = SUPPORTED_DOCUMENT_TYPE_DICT[mime_type]
+    max_name_len = 255
+    if file_name is None:
+        current_datetime = datetime.datetime.now(DEFAULT_TIMEZONE)
+        file_name = f'file-{current_datetime.strftime("%d-%m-%Y_%H-%M-%S")}{ext}'
+    if len(file_name) > max_name_len:
+        file_name = file_name.split('.')[0]
+        max_len_value = max_name_len - len(ext)
+        if len(file_name) > max_len_value:
+            file_name = file_name[:max_len_value]
+
     db_doc = Document(
         id=doc_id,
         created_at=datetime.datetime.now(DEFAULT_TIMEZONE),
-        description=description,
-        name=file.filename,
-        mime_type=file.content_type,
+        description=metadata.description,
+        name=file_name,
+        mime_type=mime_type,
         save_path=save_path,
         source=DocumentSource.UPLOADED
     )
@@ -154,9 +167,12 @@ async def get_unembedded(params: PagingQuery, session: SessionDep):
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload(file: Annotated[UploadFile, File()],
-                 description: Annotated[str | None, Form(default=None, max_length=255)],
+                 metadata: Annotated[DocumentCreate, Form()],
                  session: SessionDep) -> str:
-    uploaded_document_id = await save_document(file=file, description=description, session=session)
+    mime_type = file.content_type
+    if mime_type not in SUPPORTED_DOCUMENT_TYPE_DICT:
+        raise InvalidArgumentError(f'Unsupported MIME type: {mime_type}.')
+    uploaded_document_id = await save_document(file=file, metadata=metadata, session=session)
     return str(uploaded_document_id)
 
 

@@ -1,11 +1,14 @@
 import datetime
 
-__all__ = ['EMOTICONS', 'DEFAULT_TIMEZONE', 'DEFAULT_CHARSET', 'DEFAULT_TOKEN_SEPARATOR']
+__all__ = ['EMOTICONS', 'DEFAULT_TIMEZONE', 'DEFAULT_CHARSET', 'DEFAULT_TOKEN_SEPARATOR',
+           "SUPPORTED_DOCUMENT_TYPE_DICT"]
 
 DEFAULT_TIMEZONE = datetime.timezone.utc
 DEFAULT_CHARSET = "utf-8"
 DEFAULT_TOKEN_SEPARATOR = "::"
-
+SUPPORTED_DOCUMENT_TYPE_DICT = {
+    "application/pdf": ".pdf"
+}
 EMOTICONS = {
     u":‑)": "Happy face or smiley",
     u":-))": "Very Happy face or smiley",

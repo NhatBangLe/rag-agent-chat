@@ -24,6 +24,10 @@ class DocumentPublic(BaseDocument):
     embedded_to_bm25: bool
 
 
+class DocumentCreate(BaseModel):
+    description: str | None = Field(default=None, max_length=255)
+
+
 class PagingWrapper[T](BaseModel):
     """
     The `PagingWrapper` class provides a standardized structure for encapsulating
