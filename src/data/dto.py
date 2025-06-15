@@ -20,6 +20,8 @@ class ImagePublic(BaseImage):
 
 class DocumentPublic(BaseDocument):
     id: UUID
+    embedded_to_vs: str | None
+    embedded_to_bm25: bool
 
 
 class PagingWrapper[T](BaseModel):

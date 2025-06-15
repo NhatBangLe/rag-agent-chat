@@ -1,20 +1,20 @@
 import datetime
 import os.path
-import typing
 from pathlib import Path
+from typing import cast, Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, UploadFile, status
+from fastapi import APIRouter, status, UploadFile, Form, File
 from sqlmodel import Session, select
 
 from ..data.base_model import DocumentSource
 from ..data.dto import DocumentPublic
 from ..data.model import Document, DocumentChunk
 from ..dependency import SessionDep, DownloadGeneratorDep, PagingParams, PagingQuery
-from ..util.error import NotFoundError
-from ..util.main import SecureDownloadGenerator, FileInformation
-from ..util.function import strict_uuid_parser
 from ..util.constant import DEFAULT_TIMEZONE
+from ..util.error import NotFoundError
+from ..util.function import strict_uuid_parser
+from ..util.main import SecureDownloadGenerator, FileInformation
 
 DEFAULT_SAVE_DIRECTORY = "/resource"
 
@@ -27,7 +27,7 @@ def get_document(doc_id: UUID, session: Session) -> Document:
     db_doc = session.get(Document, doc_id)
     if db_doc is None:
         raise NotFoundError(f'Document with id {doc_id} not found.')
-    return typing.cast(Document, db_doc)
+    return cast(Document, db_doc)
 
 
 def get_document_download_token(doc_id: UUID, session: Session, generator: SecureDownloadGenerator) -> str:
@@ -67,7 +67,7 @@ def get_unembedded_documents(params: PagingParams, session: Session) -> list[Doc
     return list(results.all())
 
 
-async def save_document(file: UploadFile, session: Session) -> UUID:
+async def save_document(file: UploadFile, description: str | None, session: Session) -> UUID:
     file_bytes = await file.read()
     doc_id = uuid4()
     save_path = os.path.join(get_save_document_directory(), str(doc_id))
@@ -76,6 +76,7 @@ async def save_document(file: UploadFile, session: Session) -> UUID:
     db_doc = Document(
         id=doc_id,
         created_at=datetime.datetime.now(DEFAULT_TIMEZONE),
+        description=description,
         name=file.filename,
         mime_type=file.content_type,
         save_path=save_path,
@@ -90,17 +91,7 @@ async def save_document(file: UploadFile, session: Session) -> UUID:
 async def embed_document(store_name: str, doc_id: UUID, session: Session):
     db_doc = get_document(doc_id, session)
 
-    from ..main import get_agent
-    agent = get_agent()
     try:
-        await agent.embed_document(
-            store_name=store_name,
-            file_info={
-                "name": db_doc.name,
-                "path": db_doc.save_path,
-                "mime_type": db_doc.mime_type,
-            })
-
         db_doc.embed_to_vs = store_name
         session.add(db_doc)
         session.commit()
@@ -112,6 +103,18 @@ def delete_document(doc_id: UUID, session: Session):
     db_doc = get_document(doc_id, session)
     session.delete(db_doc)
     session.commit()
+
+
+def to_doc_public(db_doc: Document):
+    return DocumentPublic(
+        id=db_doc.id,
+        created_at=datetime.datetime.now(DEFAULT_TIMEZONE),
+        name=db_doc.name,
+        mime_type=db_doc.mime_type,
+        source=db_doc.source,
+        embedded_to_vs=db_doc.embed_to_vs,
+        embedded_to_bm25=db_doc.embed_bm25
+    )
 
 
 router = APIRouter(
@@ -133,22 +136,27 @@ async def get_download_token(document_id: str, session: SessionDep,
 
 @router.get("/{document_id}/info", response_model=DocumentPublic, status_code=status.HTTP_200_OK)
 async def get_information(document_id: str, session: SessionDep):
-    return get_document(doc_id=strict_uuid_parser(document_id), session=session)
+    doc = get_document(doc_id=strict_uuid_parser(document_id), session=session)
+    return to_doc_public(doc)
 
 
 @router.get("/embedded", response_model=list[DocumentPublic], status_code=status.HTTP_200_OK)
 async def get_embedded(params: PagingQuery, session: SessionDep):
-    return get_embedded_documents(params=params, session=session)
+    docs = get_embedded_documents(params=params, session=session)
+    return [to_doc_public(doc) for doc in docs]
 
 
 @router.get("/unembedded", response_model=list[DocumentPublic], status_code=status.HTTP_200_OK)
 async def get_unembedded(params: PagingQuery, session: SessionDep):
-    return get_unembedded_documents(params=params, session=session)
+    docs = get_unembedded_documents(params=params, session=session)
+    return [to_doc_public(doc) for doc in docs]
 
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
-async def upload(file: UploadFile, session: SessionDep) -> str:
-    uploaded_document_id = await save_document(file=file, session=session)
+async def upload(file: Annotated[UploadFile, File()],
+                 description: Annotated[str | None, Form(default=None, max_length=255)],
+                 session: SessionDep) -> str:
+    uploaded_document_id = await save_document(file=file, description=description, session=session)
     return str(uploaded_document_id)
 
 
