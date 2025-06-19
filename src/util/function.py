@@ -5,8 +5,6 @@ import zipfile
 from pathlib import Path
 from typing import Sequence
 
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_core.document_loaders import BaseLoader
 from sqlmodel import select
 
 from src.agent import ClassifiedAttachment
@@ -75,13 +73,6 @@ def zip_folder(folder_path: str | os.PathLike[str], output_path: str | os.PathLi
         for file_path in folder.rglob('*'):
             if file_path.is_file():
                 zipf.write(file_path, file_path.relative_to(folder))
-
-
-def get_document_loader(file_path: str | bytes, mime_type: str) -> BaseLoader:
-    if mime_type == "application/pdf":
-        return PyPDFLoader(file_path)
-    else:
-        raise ValueError(f"Unsupported MIME type: {mime_type}")
 
 
 # noinspection PyTypeChecker,PyUnresolvedReferences

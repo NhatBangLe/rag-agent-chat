@@ -18,7 +18,6 @@ from src.route.document import router as document_router
 from src.route.export import router as export_router
 from src.route.image import router as image_router
 from src.route.label import router as label_router
-from src.route.thread import router as thread_router
 from src.util.error import NotFoundError, InvalidArgumentError
 from src.util.function import get_config_folder_path
 
@@ -55,7 +54,6 @@ agent = Agent(configurer=configurer)
 
 
 def get_agent():
-    agent.check_graph_available()
     return agent
 
 
@@ -67,7 +65,6 @@ async def lifespan(api: FastAPI):
 
     # Initialize the agent.
     await agent.configure()
-    agent.build_graph()
 
     # Insert predefined output classes to the database.
     image_recognizer_config = agent.configurer.config.image_recognizer
@@ -94,7 +91,6 @@ app.include_router(router=image_router)
 app.include_router(router=label_router)
 app.include_router(router=export_router)
 app.include_router(router=document_router)
-app.include_router(router=thread_router)
 
 
 # Global routes

@@ -3,7 +3,7 @@ from typing import TypedDict
 
 from pydantic import BaseModel, Field, field_validator
 
-__all__ = ["image", "ClassDescriptor", "RecognizerOutput", "RecognizingResult"]
+__all__ = ["image", "ClassDescriptor", "RecognizerOutput", "RecognizingResult", "Recognizer"]
 
 
 class ClassDescriptor(BaseModel):

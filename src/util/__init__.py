@@ -17,7 +17,7 @@ from sqlmodel import Session
 from src.util.constant import DEFAULT_CHARSET, DEFAULT_TOKEN_SEPARATOR, EMOTICONS
 
 __all__ = ['error', 'FileInformation', "SecureDownloadGenerator", "Progress", "constant", "function", "PagingParams",
-           "PagingWrapper"]
+           "PagingWrapper", "TextPreprocessing"]
 
 
 class FileInformation(TypedDict):

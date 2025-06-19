@@ -1,7 +1,6 @@
-from typing import TypedDict, Sequence
-from langgraph.graph import MessagesState
+from typing import TypedDict, Sequence, Literal
 
-__all__ = ["agent", "StateConfiguration", "Attachment", "ClassifiedAttachment", "State", "InputState"]
+__all__ = ["agent", "StateConfiguration", "Attachment", "ClassifiedAttachment"]
 
 
 class Attachment(TypedDict):
@@ -21,9 +20,11 @@ class StateConfiguration(TypedDict):
     my_configurable_param: str
 
 
-class State(MessagesState):
-    classified_attachments: list[ClassifiedAttachment] | None
+class VectorStoreMetadata(TypedDict):
+    name: str
+    status: Literal["USE", "UNUSE"]
 
 
-class InputState(MessagesState):
-    attachments: Sequence[Attachment] | None
+class AgentMetadata(TypedDict):
+    status: Literal["ON", "OFF", "RESTART"]
+    vector_stores: Sequence[VectorStoreMetadata] | None
