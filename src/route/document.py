@@ -117,17 +117,7 @@ async def save_document(file: UploadFile, description: str | None, session: Sess
 async def embed_document(store_name: str, doc_id: UUID, session: Session):
     db_doc = get_document(doc_id, session)
 
-    from ..main import get_agent
-    agent = get_agent()
     try:
-        await agent.embed_document(
-            store_name=store_name,
-            file_info={
-                "name": db_doc.name,
-                "path": db_doc.save_path,
-                "mime_type": db_doc.mime_type,
-            })
-
         db_doc.embed_to_vs = store_name
         session.add(db_doc)
         session.commit()
